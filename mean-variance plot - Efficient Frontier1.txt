@@ -1,0 +1,53 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import math
+import random
+from datetime import datetime
+
+qb = QuantBook()
+
+# Use the two stocks for the portfolio: Morgan Stanley (MS) and ExxonMobil (XOM)
+tickers = ['MS', 'XOM']
+symbols = [qb.AddEquity(ticker, Resolution.Daily).Symbol for ticker in tickers]
+
+# Request (daily) historical data from 1/1/2017 to 1/1/2018
+start_date = datetime(2017, 1, 1)
+end_date = datetime(2018, 1, 1)
+history = qb.History(symbols, start_date, end_date, Resolution.Daily)
+df = history['close'].unstack(level=0)
+df.columns = tickers  # Rename columns to match the tickers
+
+# Compute daily returns and the covariance matrix of returns
+daily_returns = df.pct_change(1).dropna()
+cov_matrix = daily_returns.cov()
+
+# Function to calculate the portfolio's expected return and variance for given weights
+def portfolio_stats(weights):
+    # Expected return: weighted average of daily returns
+    exp_return = daily_returns.mean().dot(weights)
+    # Portfolio variance: quadratic form using the covariance matrix
+    port_variance = np.dot(weights.T, np.dot(cov_matrix, weights))
+    return exp_return, port_variance
+
+# Simulate 200 random portfolios
+n_samples = 200
+portfolio_returns = []
+portfolio_risks = []
+
+for i in range(n_samples):
+    # For two stocks, generate a random weight for MS and set XOM's weight as the complement
+    w_ms = random.random()
+    weights = pd.Series([w_ms, 1 - w_ms], index=tickers)
+    
+    exp_return, port_variance = portfolio_stats(weights)
+    portfolio_returns.append(exp_return)
+    portfolio_risks.append(math.sqrt(port_variance))  # Volatility is the square root of variance
+
+# Generate the mean-variance plot
+plt.figure(figsize=[17, 9])
+plt.scatter(portfolio_risks, portfolio_returns, color="green")
+plt.xlabel("Volatility", fontsize='large', fontweight='bold')
+plt.ylabel("Expected Return", fontsize='large', fontweight='bold')
+plt.title("Mean-Variance Portfolio for " + str(tickers))
+plt.show()
