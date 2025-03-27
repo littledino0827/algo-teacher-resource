@@ -1,0 +1,96 @@
+# QuantBook Analysis Tool 
+# For more information see [https://www.quantconnect.com/docs/v2/our-platform/research/getting-started]
+import numpy as np
+import pandas as pd
+from scipy import stats
+import matplotlib.pyplot as plt
+import math
+import datetime 
+import statsmodels.formula.api as smf 
+from datetime import date, time, datetime, timedelta
+import seaborn as sns
+import random
+
+qb = QuantBook()
+
+tickers =['JPM', 'AAPL','XOM']
+symbols =[]
+
+for ticker in tickers:
+    symbols.append(qb.AddEquity(ticker, Resolution.Daily).Symbol)
+
+history = qb.History(symbols, 260, Resolution.Daily)
+df = history['close'].unstack(level =0)
+#Reset df's columns names to be the corresponding tickers. Otherwsie
+#the default name is the string value of the symbols, which has extra codes 
+#after the tic
+# ker name
+
+df.columns = tickers
+
+
+#Next we for computer daily returns, and form covariance matrix of the returns.
+dg = df.pct_change(1).dropna()
+#covariance matrix of the returns
+dg_cov= dg.cov()
+
+# This function calculate the portoflio return and standard deviation for a given weight
+def port(wt):
+    
+    cov_matrix = dg_cov
+    return_matrix = pd.DataFrame (data = dg.mean())
+    
+    return_matrix.index = cov_matrix.index
+    
+    wt.index = cov_matrix.index
+    
+    v = cov_matrix.dot(wt)
+    u = return_matrix.T.dot(wt)
+    
+    port_var = wt.T.dot(v).values
+    
+    port_return = u.values
+    
+    
+    return [port_return, port_var]
+
+#simulate portfolio weights. You should try different ways of simulating to get a sense of how random module works in Python
+#This is a very rudimentary simulation method.
+
+ret =[] # portfolio returns
+sig =[] # portfolio return volatility
+
+n = 200
+#number of simulation run
+for i in range(n):
+    
+    w1= random.randint(0,n)
+    
+    for j in range (n):
+    
+        w2 = random.randint (0, n-w1)
+    
+        w3 = n-w1-w2
+        
+        wt = pd.DataFrame([w1/n, w2/n, w3/n])
+        
+        #print (wt)
+        
+        r = port (wt)[0]
+        v = port (wt)[1]
+        
+        #print (r, v) 
+        
+        
+        ret = np.append (ret, r)
+        sig = np.append (sig, math.sqrt(v))
+
+#Generate efficient frontier graph using Matplotlib libirary # 200 sample
+
+plt.figure(figsize =[17,9])
+plt.scatter(sig, ret, color ="green")
+plt.xlabel("Volatility", fontsize='large', fontweight='bold')
+plt.ylabel("Expected Return",fontsize='large', fontweight='bold')
+plt.title("Mean Variance Portfolio Consisting of " + str(tickers))
+
+plt.show()

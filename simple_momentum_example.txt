@@ -1,0 +1,89 @@
+# region imports
+from AlgorithmImports import *
+# endregion
+
+class QC3(QCAlgorithm):
+    
+    def Initialize(self):
+        
+        self.SetStartDate(2021, 3,20) 
+        self.SetEndDate(2022,3,20)  
+        self.SetCash(10000000)  
+        self.SetWarmUp(30)
+
+        self.ticker ='AMD'
+        self.sym = self.AddEquity(self.ticker, Resolution.Daily)
+
+        self.ticker1 = 'AMZN'
+        self.sym1 = self.AddEquity(self.ticker1, Resolution.Daily)
+
+        # define a 10-period daily RSI indicator with shortcut helper method
+      
+        self.sma = self.SMA(self.ticker, 20, Resolution.Daily)
+        self.sma1 = self.SMA(self.ticker1, 20, Resolution.Daily)
+
+        self.port = True # True indicates that have one or two stocks
+
+        
+        if self.port:
+
+            self.wt = 0.25 # if we have two stocks, each wt will be 25%
+
+        else:
+            
+             self.wt = 0.5 # single stock wt 50%
+
+    def OnData(self, data):
+        
+        if self.IsWarmingUp:
+            return
+            
+        ind = self.sma.Current.Value
+        ind1= self.sma1.Current.Value
+
+        self.Debug("Price " + str(self.sym.Price) + "indicator " +str(ind))
+        self.Debug(" Compare " + str(self.sym.Price>ind))
+
+        #Trend-Following Momentum Strategy for self.ticker
+
+        if not self.Portfolio[self.ticker].Invested:
+            
+            if self.sym.Price > ind:
+
+                self.SetHoldings(self.sym.Symbol, self.wt)
+
+            elif self.sym.Price <ind:
+
+                self.SetHoldings(self.sym.Symbol, -self.wt)
+
+        elif self.Portfolio[self.ticker].IsLong and self.sym.Price< ind or \
+            self.Portfolio[self.ticker].IsShort and self.sym.Price> ind:
+
+            self.SetHoldings(self.sym.Symbol, 0.0)
+
+        #Trend-Reversal Strategy for self.ticker1
+
+        if self.port:
+
+            if not self.Portfolio[self.ticker1].Invested:
+            
+                if self.sym1.Price > ind1:
+
+                    self.SetHoldings(self.sym1.Symbol, -self.wt)
+
+                elif self.sym1.Price <ind1:
+
+                    self.SetHoldings(self.sym1.Symbol, self.wt)
+
+            elif self.Portfolio[self.ticker1].IsShort and self.sym1.Price< ind or \
+                self.Portfolio[self.ticker1].IsLong and self.sym1.Price> ind:
+
+                self.SetHoldings(self.sym1.Symbol, 0.0)    
+
+
+
+        
+
+        
+
+        

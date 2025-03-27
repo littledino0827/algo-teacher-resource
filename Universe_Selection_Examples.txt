@@ -1,0 +1,125 @@
+#region imports
+from AlgorithmImports import *
+#endregion
+from AlgorithmImports import *
+
+#The purpsoe of these codes is to demonstrate how to select stocks from QC DataBase according to a 
+#set of criterions, which could be static or dynamic according to how your algorithms are executed. 
+#For a complete reference for stocks, chekc out https://www.quantconnect.com/docs/v2/writing-algorithms/universes/equity
+
+
+class LiquidUniverseSelection(QCAlgorithm):
+    
+    filteredByPrice = None
+    
+    def Initialize(self):
+        self.SetStartDate(2020, 1, 11)  
+        self.SetEndDate(2020, 3, 1) 
+        self.SetCash(100000)
+
+        # Addiing a universe based on two joint selections: self.CoarseSelectionFilter and self.FineSelectionFunction
+        # The second argument is option,that is, to have fundamental filter, you still need the first filter
+        
+        self.AddUniverse(self.CoarseSelectionFilter, self.FineSelectionFunction)
+    
+        #self.AddUniverse(coarse,self.FineSelectionFunction)
+        self.UniverseSettings.Resolution = Resolution.Daily
+      
+        self.SetSecurityInitializer(lambda x: x.SetDataNormalizationMode(DataNormalizationMode.Raw))
+
+        #1. Set the leverage to 2
+        
+        self.UniverseSettings.Leverage = 2
+        
+        self.Liquidate()
+
+        self.counter = 0
+
+        self.Debug("Start time " + str(type(self.StartDate)))
+                
+    # see document here https://www.quantconnect.com/docs/data-library/fundamentals#Fundamentals-Asset-Classification   
+    
+    def CoarseSelectionFilter(self, coarse):
+        
+        sortedByDollarVolume = sorted(coarse, key=lambda c: c.DollarVolume, reverse=True)
+        
+        filteredByPrice = [c.Symbol for c in sortedByDollarVolume if c.Price>10]
+        
+        self.filter_coarse = filteredByPrice[:100]
+        
+        return self.filter_coarse
+        
+    def FineSelectionFunction(self, fine):
+        
+        # selection based on morningstar sector code, in this example, technology code
+        # see document here https://www.quantconnect.com/docs/data-library/fundamentals#Fundamentals-Asset-Classification
+        
+        fine1 = [x for x in fine if x.AssetClassification.MorningstarSectorCode == MorningstarSectorCode.Energy]
+        
+        #ranked by the market cap
+        sortedByMarketCap = sorted(fine1, key=lambda c: c.MarketCap, reverse=True)
+
+        filteredFine = [i.Symbol for i in sortedByMarketCap]
+
+        self.filter_fine = filteredFine[:5]
+        
+        return self.filter_fine
+        
+    def OnSecuritiesChanged(self, changes):
+        self.changes = changes
+        
+        #for security in self.changes.RemovedSecurities:
+        #List of securities that are removed from the filter
+        
+            #if security.Invested:
+                #self.Liquidate(security.Symbol)
+            #self.Debug(str(security.Symbol) + " is removed")
+        
+        #for security in self.changes.AddedSecurities:
+        
+        #list of securities that are added to the filter
+        
+            # self.SetHoldings(security.Symbol, ...)
+            
+            #self.Debug(str(security.Symbol) + " is added ")
+            
+            #if not self.Portfolio[security.Symbol].Invested:
+                
+                #self.SetHoldings(security.Symbol, 0.05)
+            
+                #if self.Portfolio[security.Symbol].Quantity != 0:
+                    #self.Debug(str(security.Symbol) + " is added with positions " + str(self.Portfolio[security.Symbol].Quantity))
+            
+    def OnData(self, data):
+
+        #self.Log(f"OnData({self.UtcTime}): Keys: {', '.join([key.Value for key in data.Keys])}")
+
+        # if we have no changes, do nothing
+        #if self._changes is None: return"Invested - "+ str(self.Portfolio[security.Symbol].Invested)
+
+        # liquidate removed securities
+        #for security in self._changes.RemovedSecurities:
+            #if security.Invested:
+                #self.Liquidate(security.Symbol)
+    
+        
+        for ticker in self.filter_fine:
+            
+            #if not ticker in self.filter_fine: 
+                string = "- " + str(ticker)
+            
+            #string = str(self.Securities[ticker].Fundamentals.DollarVolume)
+            
+            
+            #string = "Time " + str(self.Time) + " Symbol " + str(ticker) + "Invested - " + str(self.Portfolio[ticker].Quantity)
+            
+            #string = string + " PE Ratio - " + str(self.Securities[ticker].Fundamentals.ValuationRatios.PERatio)
+            
+                self.Debug (string) # print to see in the Console
+            #self.Log(string) # print to a file with full details. Link to the file is at the bottom of Console screen
+
+
+
+
+
+
